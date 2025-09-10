@@ -1,0 +1,184 @@
+-- Create Database
+CREATE DATABASE IF NOT EXISTS vehicle_parts_db;
+USE vehicle_parts_db;
+
+-- Table 1: users
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(50) DEFAULT 'buyer',
+    role_status VARCHAR(20) DEFAULT 'approved',
+    role_request VARCHAR(20),
+    role_reason TEXT,
+    additional_info TEXT,
+    password VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY (email)
+);
+
+
+-- Table 2: parts
+CREATE TABLE parts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    category VARCHAR(100) NOT NULL,
+    description TEXT,
+    price DECIMAL(10,2) NOT NULL,
+    stock_quantity INT NOT NULL DEFAULT 0,
+    image_url VARCHAR(500),
+    seller_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'active',
+    KEY seller_id (seller_id),
+    CONSTRAINT fk_parts_user FOREIGN KEY (seller_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
+-- Table 3: cart_items
+CREATE TABLE cart_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    buyer_id INT,
+    product_id INT,
+    quantity INT NOT NULL DEFAULT 1,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY buyer_id (buyer_id),
+    KEY product_id (product_id)
+);
+
+-- Table 4: categories
+CREATE TABLE categories (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    UNIQUE KEY name (name)
+);
+
+-- Table 5: complaints
+CREATE TABLE complaints (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    complainant_id INT NOT NULL,
+    against_id INT NOT NULL,
+    part_id INT,
+    order_id INT,
+    reason TEXT NOT NULL,
+    evidence TEXT,
+    status ENUM('pending','reviewed','action_taken','dismissed') DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Table 6: knowledge_base
+CREATE TABLE knowledge_base (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    category ENUM('returns','payments','orders','accounts','general') DEFAULT 'general',
+    author_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Table 7: notifications
+CREATE TABLE notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY user_id (user_id),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Table 8: orders
+CREATE TABLE orders (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    buyer_id INT NOT NULL,
+    total_amount DECIMAL(10,2) NOT NULL,
+    status ENUM('pending','processing','shipped','delivered','cancelled') DEFAULT 'pending',
+    shipping_name VARCHAR(100) NOT NULL,
+    shipping_email VARCHAR(100) NOT NULL,
+    shipping_phone VARCHAR(20) NOT NULL,
+    shipping_address TEXT NOT NULL,
+    shipping_city VARCHAR(50) NOT NULL,
+    shipping_state VARCHAR(50) NOT NULL,
+    shipping_zip_code VARCHAR(10) NOT NULL,
+    shipping_country VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY buyer_id (buyer_id),
+    CONSTRAINT fk_orders_buyer FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Table 9: order_items
+CREATE TABLE order_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id INT NOT NULL,
+    part_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price DECIMAL(10,2) NOT NULL,
+    KEY order_id (order_id),
+    KEY part_id (part_id),
+    CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    CONSTRAINT fk_order_items_part FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE
+);
+
+-- Table 10: wishlists
+CREATE TABLE wishlists (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    part_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (part_id) REFERENCES parts(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_user_part (user_id, part_id),
+    KEY part_id (part_id)
+);
+
+-- Table 11: reviews
+CREATE TABLE reviews (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    buyer_id INT NOT NULL,
+    product_id INT NOT NULL,
+    rating INT NOT NULL,
+    comment TEXT,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY buyer_id (buyer_id),
+    KEY product_id (product_id),
+    CONSTRAINT fk_reviews_buyer FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT fk_reviews_product FOREIGN KEY (product_id) REFERENCES parts(id) ON DELETE CASCADE
+);
+
+-- Table 12: tickets
+CREATE TABLE tickets (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    subject VARCHAR(256) NOT NULL,
+    message TEXT NOT NULL,
+    category VARCHAR(50) DEFAULT 'other',
+    status ENUM('open','in_progress','resolved','closed') DEFAULT 'open',
+    priority ENUM('low','medium','high','urgent') DEFAULT 'medium',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    KEY user_id (user_id),
+    CONSTRAINT fk_tickets_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Table 13: ticket_replies
+CREATE TABLE ticket_replies (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    sender_role ENUM('buyer','seller','support') NOT NULL,
+    message TEXT NOT NULL,
+    is_read TINYINT(1) DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    KEY ticket_id (ticket_id),
+    KEY sender_id (sender_id),
+    CONSTRAINT fk_ticket_replies_ticket FOREIGN KEY (ticket_id) REFERENCES tickets(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ticket_replies_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE
+);
